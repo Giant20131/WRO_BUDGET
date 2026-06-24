@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WRO Budget Manager - Dashboard</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for premium look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f46e5;
+        }
+    </style>
+</head>
+<body class="h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 min-h-screen relative pb-12">
+    
+    <!-- Background Blurs -->
+    <div class="absolute top-0 right-0 w-96 h-96 bg-brand-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Navigation Header -->
+    <header class="border-b border-white/10 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-24 flex items-center justify-center">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/03/Logo_wro.png" alt="WRO Logo" class="h-full max-w-full object-contain">
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Budget</span>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <!-- User Profile & Role Info -->
+                <div class="hidden sm:flex flex-col text-right">
+                    <span class="text-sm font-semibold text-white">{{ current_user.username }}</span>
+                    <span class="text-xs text-slate-400 capitalize">
+                        {% if current_user.role == 'admin' %}
+                            <span class="px-1.5 py-0.5 rounded bg-brand-500/10 border border-brand-500/20 text-brand-400 font-medium">Administrator</span>
+                        {% else %}
+                            <span class="px-1.5 py-0.5 rounded bg-teal-500/10 border border-teal-500/20 text-teal-400 font-medium">Teammate</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <!-- Action Buttons -->
+                <button onclick="openModal('addBuyModal')" class="bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-brand-500/15 active:scale-[0.98] transition-all cursor-pointer">
+                    Log a Purchase
+                </button>
+
+                {% if current_user.role == 'admin' %}
+                <button onclick="openModal('manageBudgetModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+                    Manage Budgets
+                </button>
+                {% endif %}
+
+                <a href="{{ url_for('logout') }}" class="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition-colors" title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+        
+        <!-- Flashed Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="space-y-2">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-xl border text-sm flex items-start gap-3 backdrop-blur-md animate-fade-in
+                            {% if category == 'success' %}
+                                bg-emerald-500/10 border-emerald-500/30 text-emerald-400
+                            {% elif category == 'danger' or category == 'error' %}
+                                bg-rose-500/10 border-rose-500/30 text-rose-400
+                            {% else %}
+                                bg-indigo-500/10 border-indigo-500/30 text-indigo-400
+                            {% endif %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 flex-shrink-0 mt-0.5">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd" />
+                            </svg>
+                            <span class="flex-grow font-medium">{{ message }}</span>
+                            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 4.08a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                                </svg>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Metric Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% if current_user.role == 'admin' %}
+                <!-- Admin Cards -->
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-brand-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Total Team Budget</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(admin_stats.budget) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Combined allocations for teammates</p>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Total Expenses</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(admin_stats.spent) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Cumulative spent by both teammates</p>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Remaining Funds</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(admin_stats.remaining) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Total remaining in team budget</p>
+                </div>
+            {% else %}
+                <!-- Teammate Cards -->
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-brand-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">My Budget</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(teammate_stats.my_budget) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Your individual allocated budget</p>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-rose-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">My Spent</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(teammate_stats.my_spent) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Total amount you have logged</p>
+                </div>
+                <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                    <p class="text-xs font-semibold tracking-wider text-slate-400 uppercase">My Remaining</p>
+                    <p class="text-3xl font-bold text-white mt-2 font-mono">₹{{ "{:,.2f}".format(teammate_stats.my_remaining) }}</p>
+                    <p class="text-xs text-slate-500 mt-2">Your remaining active balance</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Teammate Side Statistics Summary (For Teammates only) -->
+        {% if current_user.role == 'teammate' and teammate_stats.other_name %}
+        <section class="bg-slate-900/20 border border-white/5 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h4 class="text-sm font-semibold text-slate-300">Teammate Financial Status</h4>
+                <p class="text-xs text-slate-500">Overview of other members' budget usage</p>
+            </div>
+            <div class="flex items-center gap-8 font-mono text-sm">
+                <div>
+                    <span class="text-xs text-slate-400 uppercase block font-sans">Member</span>
+                    <span class="text-white capitalize font-semibold">{{ teammate_stats.other_name }}</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 uppercase block font-sans">Budget</span>
+                    <span class="text-white font-semibold">₹{{ "{:,.2f}".format(teammate_stats.other_budget) }}</span>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 uppercase block font-sans">Spent</span>
+                    <span class="text-amber-400 font-semibold">₹{{ "{:,.2f}".format(teammate_stats.other_spent) }}</span>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Analytics Visualizations Section -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Grouped Bar Chart -->
+            <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col h-[380px]">
+                <h3 class="text-base font-semibold text-white mb-4">Allocated vs Actual Expenditures</h3>
+                <div class="flex-grow min-h-0 relative">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+            <!-- Cumulative Burn Rate Line Chart -->
+            <div class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col h-[380px]">
+                <h3 class="text-base font-semibold text-white mb-4">Cumulative Team Burn Rate</h3>
+                <div class="flex-grow min-h-0 relative">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transaction Manager Section -->
+        <section class="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+            <div class="p-6 border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white">Transaction Logs</h3>
+                    <p class="text-xs text-slate-400">Expand rows to view line-item components and downloadable PDF proofs</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('export_expenses') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors active:scale-[0.98]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Export Summary (CSV)
+                    </a>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-white/10 text-xs font-semibold tracking-wider text-slate-400 uppercase bg-slate-950/40">
+                            <th class="py-4 px-6">ID</th>
+                            <th class="py-4 px-6">Date</th>
+                            <th class="py-4 px-6">Time</th>
+                            <th class="py-4 px-6">Buyer</th>
+                            <th class="py-4 px-6">Total Cost</th>
+                            <th class="py-4 px-6 text-right">Proof File</th>
+                            {% if current_user.role == 'admin' %}
+                            <th class="py-4 px-6 text-center">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% if not buys %}
+                        <tr>
+                            <td colspan="{% if current_user.role == 'admin' %}7{% else %}6{% endif %}" class="text-center py-8 text-sm text-slate-500">No purchases have been logged yet.</td>
+                        </tr>
+                        {% endif %}
+                        {% for buy in buys %}
+                        <tr class="cursor-pointer hover:bg-white/5 transition-colors group" onclick="toggleDetails('{{ buy.id }}')">
+                            <td class="py-4 px-6 font-mono text-sm font-semibold text-slate-300">#{{ buy.id }}</td>
+                            <td class="py-4 px-6 text-sm text-slate-300">{{ buy.date.strftime('%b %d, %Y') }}</td>
+                            <td class="py-4 px-6 text-sm text-slate-400">{{ buy.time.strftime('%I:%M %p') }}</td>
+                            <td class="py-4 px-6 text-sm">
+                                <span class="capitalize text-slate-200 font-semibold">{{ buy.user.username }}</span>
+                            </td>
+                            <td class="py-4 px-6 text-sm font-bold text-white font-mono">₹{{ "{:,.2f}".format(buy.total_amount) }}</td>
+                            <td class="py-4 px-6 text-right text-sm">
+                                {% if buy.pdf_proof_path %}
+                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" onclick="event.stopPropagation();" class="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                    </svg>
+                                    PDF Proof
+                                </a>
+                                {% else %}
+                                <span class="text-xs text-slate-500 italic">No File</span>
+                                {% endif %}
+                            </td>
+                            {% if current_user.role == 'admin' %}
+                            <td class="py-4 px-6 text-center" onclick="event.stopPropagation();">
+                                <a href="{{ url_for('buy_edit', buy_id=buy.id) }}" class="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-white/10 px-2.5 py-1.5 rounded-lg transition-colors">
+                                    Edit Details
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        
+                        <!-- Collapsible Expanded Info -->
+                        <tr id="details-{{ buy.id }}" class="hidden bg-slate-950/50 border-b border-white/5">
+                            <td colspan="{% if current_user.role == 'admin' %}7{% else %}6{% endif %}" class="p-6">
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                                        <h4 class="text-sm font-semibold text-white flex items-center gap-1.5">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-brand-400">
+                                                <path fill-rule="evenodd" d="M2.5 3A1.5 1.5 0 0 0 1 4.5v11A1.5 1.5 0 0 0 2.5 17h15a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 17.5 3h-15ZM10 5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM4.75 6a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5ZM4 10.75A.75.75 0 0 1 4.75 10h10.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 10.75Zm.75 2.25a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Z" clip-rule="evenodd" />
+                                            </svg>
+                                            Transaction Component Details
+                                        </h4>
+                                        <span class="text-xs text-slate-400 font-mono">Date logged: {{ buy.date.strftime('%Y-%m-%d') }} @ {{ buy.time.strftime('%H:%M:%S') }}</span>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <!-- Components Table -->
+                                        <div>
+                                            <table class="w-full text-left">
+                                                <thead>
+                                                    <tr class="text-[10px] uppercase font-bold tracking-wider text-slate-500 border-b border-white/5 pb-2">
+                                                        <th class="pb-2">Component Item</th>
+                                                        <th class="pb-2 text-right">Unit Price</th>
+                                                        <th class="pb-2 text-center">Qty</th>
+                                                        <th class="pb-2 text-right">Subtotal</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-white/5">
+                                                    {% for c in buy.components %}
+                                                    <tr class="text-xs">
+                                                        <td class="py-2 text-slate-200">{{ c.component_name }}</td>
+                                                        <td class="py-2 text-right text-slate-300 font-mono">₹{{ "{:,.2f}".format(c.unit_price) }}</td>
+                                                        <td class="py-2 text-center text-slate-300 font-mono">{{ c.quantity }}</td>
+                                                        <td class="py-2 text-right text-white font-mono font-semibold">₹{{ "{:,.2f}".format(c.unit_price * c.quantity) }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <!-- Invoice overview panel -->
+                                        <div class="bg-slate-900/50 rounded-xl p-4 border border-white/5 space-y-3 flex flex-col justify-between">
+                                            <div class="space-y-2">
+                                                <h5 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Purchase Overview</h5>
+                                                <div class="flex justify-between text-xs">
+                                                    <span class="text-slate-400">Buyer:</span>
+                                                    <span class="text-white capitalize font-medium">{{ buy.user.username }}</span>
+                                                </div>
+                                                <div class="flex justify-between text-xs">
+                                                    <span class="text-slate-400">Total Purchase Value:</span>
+                                                    <span class="text-emerald-400 font-bold font-mono">₹{{ "{:,.2f}".format(buy.total_amount) }}</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="pt-3 border-t border-white/5 flex gap-2">
+                                                {% if buy.pdf_proof_path %}
+                                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" class="w-full text-center text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 py-2 rounded-lg transition-colors">
+                                                    Open PDF Proof In Browser
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal 1: Log a Purchase -->
+    <div id="addBuyModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden animate-fade-in">
+        <div class="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 flex flex-col">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-brand-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    Log New Team Purchase
+                </h3>
+                <button onclick="closeModal('addBuyModal')" class="text-slate-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+                        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 4.08a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                    </svg>
+                </button>
+            </div>
+
+            <form action="{{ url_for('buy_add') }}" method="POST" enctype="multipart/form-data" class="space-y-6 flex-grow">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Metadata fields -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Date of Purchase</label>
+                        <input type="date" name="date" required value="{{ date_today }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Time of Purchase</label>
+                        <input type="time" name="time" required value="{{ time_now }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">PDF Proof Invoice (Required)</label>
+                        <input type="file" name="pdf_proof" accept="application/pdf" required class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">Accepts PDF files only.</p>
+                    </div>
+
+                    {% if current_user.role == 'admin' %}
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Assign Buyer</label>
+                        <select name="buyer_id" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm capitalize">
+                            {% for u in all_users %}
+                                <option value="{{ u.id }}" {% if u.id == current_user.id %}selected{% endif %}>{{ u.username }} ({{ u.role }})</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-[10px] text-slate-500 mt-1">Select team member responsible for this transaction.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Dynamic Line Items Section -->
+                <div class="border-t border-white/10 pt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-semibold text-white uppercase tracking-wider">Purchase Components (Line Items)</h4>
+                        <button type="button" onclick="addComponentRow()" class="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-colors font-semibold">
+                            + Add Item
+                        </button>
+                    </div>
+
+                    <div id="components-container" class="space-y-3">
+                        <!-- First Component Row (Required) -->
+                        <div class="flex flex-col sm:flex-row gap-3 bg-slate-950/40 p-4 rounded-2xl border border-white/5 relative group">
+                            <div class="flex-grow">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Item Name / Desc</label>
+                                <input type="text" name="component_name[]" required placeholder="e.g. Raspberry Pi 4" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs">
+                            </div>
+                            <div class="w-full sm:w-32">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Unit Price (₹)</label>
+                                <input type="number" name="unit_price[]" step="0.01" min="0.01" required placeholder="0.00" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-right">
+                            </div>
+                            <div class="w-full sm:w-24">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Quantity</label>
+                                <input type="number" name="quantity[]" min="1" required value="1" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-center">
+                            </div>
+                            <div class="sm:pt-6 flex items-center justify-end">
+                                <button type="button" class="text-slate-500 cursor-not-allowed" disabled>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-white/10 pt-4 flex gap-4">
+                    <button type="button" onclick="closeModal('addBuyModal')" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 rounded-xl py-3 text-sm font-semibold transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl py-3 text-sm font-semibold shadow-lg shadow-brand-500/15 transition-all">
+                        Log Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if current_user.role == 'admin' %}
+    <!-- Modal 2: Manage Budgets (Admin Only) -->
+    <div id="manageBudgetModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden animate-fade-in">
+        <div class="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-8">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-brand-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.879.879-.879M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    Manage Team Budgets
+                </h3>
+                <button onclick="closeModal('manageBudgetModal')" class="text-slate-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+                        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 4.08a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                    </svg>
+                </button>
+            </div>
+
+            <form action="{{ url_for('admin_budget') }}" method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2"><span class="capitalize">{{ chart_data.manthan.username }}</span>'s Budget Allocation (₹)</label>
+                        <input type="number" name="manthan_budget" step="0.01" min="0" required value="{{ chart_data.manthan.budget }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm">
+                        <p class="text-[10px] text-slate-500 mt-1">Set total allowed expenditure limit for {{ chart_data.manthan.username | capitalize }}.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2"><span class="capitalize">{{ chart_data.dinesh.username }}</span>'s Budget Allocation (₹)</label>
+                        <input type="number" name="dinesh_budget" step="0.01" min="0" required value="{{ chart_data.dinesh.budget }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm">
+                        <p class="text-[10px] text-slate-500 mt-1">Set total allowed expenditure limit for {{ chart_data.dinesh.username | capitalize }}.</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-white/10 pt-4 flex gap-4">
+                    <button type="button" onclick="closeModal('manageBudgetModal')" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 rounded-xl py-3 text-sm font-semibold transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl py-3 text-sm font-semibold shadow-lg shadow-brand-500/15 transition-all">
+                        Update Budgets
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Javascript Actions and Modal Helpers -->
+    <script>
+        // Modal Controls
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            
+            // Set defaults for date/time fields if they are empty
+            if (modalId === 'addBuyModal') {
+                const dateInput = modal.querySelector('input[name="date"]');
+                const timeInput = modal.querySelector('input[name="time"]');
+                if (dateInput && !dateInput.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dateInput.value = today;
+                }
+                if (timeInput && !timeInput.value) {
+                    const now = new Date();
+                    const hh = String(now.getHours()).padStart(2, '0');
+                    const mm = String(now.getMinutes()).padStart(2, '0');
+                    timeInput.value = `${hh}:${mm}`;
+                }
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // Toggle details panel for buys
+        function toggleDetails(buyId) {
+            const detailsRow = document.getElementById(`details-${buyId}`);
+            if (detailsRow) {
+                detailsRow.classList.toggle('hidden');
+            }
+        }
+
+        // Add dynamically a component row to the form
+        function addComponentRow() {
+            const container = document.getElementById('components-container');
+            const rowId = 'row-' + Date.now();
+            
+            const newRow = document.createElement('div');
+            newRow.id = rowId;
+            newRow.className = "flex flex-col sm:flex-row gap-3 bg-slate-950/40 p-4 rounded-2xl border border-white/5 relative group animate-fade-in";
+            
+            newRow.innerHTML = `
+                <div class="flex-grow">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Item Name / Desc</label>
+                    <input type="text" name="component_name[]" required placeholder="Item description" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs">
+                </div>
+                <div class="w-full sm:w-32">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Unit Price (₹)</label>
+                    <input type="number" name="unit_price[]" step="0.01" min="0.01" required placeholder="0.00" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-right">
+                </div>
+                <div class="w-full sm:w-24">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Quantity</label>
+                    <input type="number" name="quantity[]" min="1" required value="1" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-center">
+                </div>
+                <div class="sm:pt-6 flex items-center justify-end">
+                    <button type="button" onclick="removeComponentRow('${rowId}')" class="text-rose-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-rose-500/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeComponentRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+            }
+        }
+
+        // --- Chart.js Implementations ---
+        // 1. Grouped Bar Chart: Allocated Budget vs Expenditures (Manthan & Dinesh)
+        const barChartData = {
+            manthan: {
+                username: {{ chart_data.manthan.username | tojson }},
+                budget: {{ chart_data.manthan.budget | tojson }},
+                spent: {{ chart_data.manthan.spent | tojson }}
+            },
+            dinesh: {
+                username: {{ chart_data.dinesh.username | tojson }},
+                budget: {{ chart_data.dinesh.budget | tojson }},
+                spent: {{ chart_data.dinesh.spent | tojson }}
+            }
+        };
+
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        const barChart = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: [barChartData.manthan.username, barChartData.dinesh.username],
+                datasets: [
+                    {
+                        label: 'Allocated Budget (₹)',
+                        data: [barChartData.manthan.budget, barChartData.dinesh.budget],
+                        backgroundColor: '#6366f1', // brand-500
+                        borderColor: '#4f46e5',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7
+                    },
+                    {
+                        label: 'Actual Expenditure (₹)',
+                        data: [barChartData.manthan.spent, barChartData.dinesh.spent],
+                        backgroundColor: '#14b8a6', // teal-500
+                        borderColor: '#0d9488',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.raw !== null) {
+                                    label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(context.raw);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 12 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11 },
+                            callback: function(value) { return '₹' + value; }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2. Line Chart: Cumulative expenditures over time (Burn Rate)
+        const lineChartLabels = {{ line_chart_data.dates | tojson }};
+        const lineChartValues = {{ line_chart_data.spent | tojson }};
+
+        // If line chart has no entries, seed empty values to render nicely
+        const finalLabels = lineChartLabels.length > 0 ? lineChartLabels : ['No Expenses'];
+        const finalValues = lineChartValues.length > 0 ? lineChartValues : [0];
+
+        const ctxLine = document.getElementById('lineChart').getContext('2d');
+        const lineGradient = ctxLine.createLinearGradient(0, 0, 0, 300);
+        lineGradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+        lineGradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+        const lineChart = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: finalLabels,
+                datasets: [{
+                    label: 'Cumulative Expenditure (₹)',
+                    data: finalValues,
+                    fill: true,
+                    backgroundColor: lineGradient,
+                    borderColor: '#6366f1',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#4f46e5',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 6,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Total Team Spent: ' + new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11 },
+                            callback: function(value) { return '₹' + value; }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

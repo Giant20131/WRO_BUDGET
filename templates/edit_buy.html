@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Transaction #{{ buy.id }} - WRO Budget Manager</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 min-h-screen relative pb-12">
+    
+    <!-- Background Blurs -->
+    <div class="absolute top-0 right-0 w-96 h-96 bg-brand-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Navigation Header -->
+    <header class="border-b border-white/10 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-24 flex items-center justify-center">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/03/Logo_wro.png" alt="WRO Logo" class="h-full max-w-full object-contain">
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Budget</span>
+            </div>
+            
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 border border-white/10 px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 mt-8">
+        
+        <!-- Header Info -->
+        <div class="mb-6 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-extrabold text-white">Edit Purchase Transaction #{{ buy.id }}</h1>
+                <p class="text-sm text-slate-400 mt-1">Admin module to adjust lines, update proof files, or re-assign buyers</p>
+            </div>
+            <div class="font-mono text-sm text-brand-400 font-semibold bg-brand-500/10 border border-brand-500/20 px-3 py-1 rounded-xl">
+                Current Total: ₹{{ "{:,.2f}".format(buy.total_amount) }}
+            </div>
+        </div>
+
+        <!-- Flashed Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for category, message in messages %}
+                        <div class="p-4 rounded-xl border text-sm flex items-start gap-3 backdrop-blur-md
+                            {% if category == 'success' %}
+                                bg-emerald-500/10 border-emerald-500/30 text-emerald-400
+                            {% elif category == 'danger' or category == 'error' %}
+                                bg-rose-500/10 border-rose-500/30 text-rose-400
+                            {% else %}
+                                bg-indigo-500/10 border-indigo-500/30 text-indigo-400
+                            {% endif %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 flex-shrink-0 mt-0.5">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM9 9a.75.75 0 0 0 0 1.5h.253a.25.25 0 0 1 .244.304l-.459 2.066A1.75 1.75 0 0 0 10.747 15H11a.75.75 0 0 0 0-1.5h-.253a.25.25 0 0 1-.244-.304l.459-2.066A1.75 1.75 0 0 0 9.253 9H9Z" clip-rule="evenodd" />
+                            </svg>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Edit Form Card -->
+        <div class="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+            <form action="{{ url_for('buy_edit', buy_id=buy.id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Metadata Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Date of Purchase</label>
+                        <input type="date" name="date" required value="{{ buy.date.strftime('%Y-%m-%d') }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Time of Purchase</label>
+                        <input type="time" name="time" required value="{{ buy.time.strftime('%H:%M') }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                </div>
+
+                <!-- Assignment Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Replace PDF Proof File (Optional)</label>
+                        <input type="file" name="pdf_proof" accept="application/pdf" class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">Leave empty to keep current proof: 
+                            {% if buy.pdf_proof_path %}
+                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" class="text-brand-400 hover:underline inline-flex items-center gap-0.5">
+                                    {{ buy.pdf_proof_path.split('_', 1)[1] if '_' in buy.pdf_proof_path else buy.pdf_proof_path }}
+                                </a>
+                            {% else %}
+                                <span class="italic text-slate-600">None uploaded</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Re-assign Buyer</label>
+                        <select name="buyer_id" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm capitalize">
+                            {% for u in users %}
+                                <option value="{{ u.id }}" {% if u.id == buy.user_id %}selected{% endif %}>{{ u.username }} ({{ u.role }})</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-[10px] text-slate-500 mt-1">Re-assign financial ownership of this transaction.</p>
+                    </div>
+                </div>
+
+                <!-- Components Manager -->
+                <div class="border-t border-white/10 pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Purchase Components</h3>
+                        <button type="button" onclick="addComponentRow()" class="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-colors font-semibold">
+                            + Add Item
+                        </button>
+                    </div>
+
+                    <div id="components-container" class="space-y-3">
+                        {% for c in buy.components %}
+                        {% set row_id = 'existing-' ~ loop.index %}
+                        <div id="{{ row_id }}" class="flex flex-col sm:flex-row gap-3 bg-slate-950/40 p-4 rounded-2xl border border-white/5 relative group">
+                            <div class="flex-grow">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Item Name / Desc</label>
+                                <input type="text" name="component_name[]" required value="{{ c.component_name }}" placeholder="Item description" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs">
+                            </div>
+                            <div class="w-full sm:w-32">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Unit Price (₹)</label>
+                                <input type="number" name="unit_price[]" step="0.01" min="0.01" required value="{{ c.unit_price }}" placeholder="0.00" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-right">
+                            </div>
+                            <div class="w-full sm:w-24">
+                                <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Quantity</label>
+                                <input type="number" name="quantity[]" min="1" required value="{{ c.quantity }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-center">
+                            </div>
+                            <div class="sm:pt-6 flex items-center justify-end">
+                                <button type="button" onclick="removeComponentRow('{{ row_id }}')" class="text-rose-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-rose-500/10">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="border-t border-white/10 pt-6 flex gap-4">
+                    <a href="{{ url_for('dashboard') }}" class="w-1/2 text-center bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 rounded-xl py-3.5 text-sm font-semibold transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" class="w-1/2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl py-3.5 text-sm font-semibold shadow-lg shadow-brand-500/15 transition-all">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </main>
+
+    <!-- Component Row Template & Actions -->
+    <script>
+        function addComponentRow() {
+            const container = document.getElementById('components-container');
+            const rowId = 'row-' + Date.now();
+            
+            const newRow = document.createElement('div');
+            newRow.id = rowId;
+            newRow.className = "flex flex-col sm:flex-row gap-3 bg-slate-950/40 p-4 rounded-2xl border border-white/5 relative group animate-fade-in";
+            
+            newRow.innerHTML = `
+                <div class="flex-grow">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Item Name / Desc</label>
+                    <input type="text" name="component_name[]" required placeholder="Item description" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs">
+                </div>
+                <div class="w-full sm:w-32">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Unit Price (₹)</label>
+                    <input type="number" name="unit_price[]" step="0.01" min="0.01" required placeholder="0.00" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-right">
+                </div>
+                <div class="w-full sm:w-24">
+                    <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Quantity</label>
+                    <input type="number" name="quantity[]" min="1" required value="1" class="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs text-center">
+                </div>
+                <div class="sm:pt-6 flex items-center justify-end">
+                    <button type="button" onclick="removeComponentRow('${rowId}')" class="text-rose-500 hover:text-rose-400 transition-colors p-1 rounded hover:bg-rose-500/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeComponentRow(rowId) {
+            const container = document.getElementById('components-container');
+            const rowCount = container.children.length;
+            
+            if (rowCount <= 1) {
+                alert("A transaction must contain at least one component.");
+                return;
+            }
+            
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+            }
+        }
+    </script>
+</body>
+</html>
