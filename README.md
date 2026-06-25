@@ -16,7 +16,8 @@ A complete, production-ready, dark-themed Flask web application to manage, track
 
 ## Technical Stack
 - **Backend**: Python 3.x, Flask
-- **Database**: Relational SQLite via Flask-SQLAlchemy
+- **Database**: Supabase PostgreSQL (via SQLDialect driver `pg8000`) with dynamic local SQLite fallback
+- **File Storage**: Hybrid Storage (Supabase Storage API for persistent remote uploads with local file system fallback)
 - **Security**: Flask-WTF (global CSRF Protection), Werkzeug (secure password hashing)
 - **Frontend**: Tailwind CSS CDN, Chart.js CDN, Vanilla JavaScript (DOM manipulation)
 
@@ -45,6 +46,14 @@ A complete, production-ready, dark-themed Flask web application to manage, track
 
    DINESH_USERNAME=dinesh
    DINESH_PASSWORD=dineshpassword123
+
+   # (Optional) Database Connection string to Supabase PostgreSQL (Transaction Pooler recommended)
+   # DATABASE_URL=postgresql://postgres.xxx:password@aws-0-xxx.pooler.supabase.com:6543/postgres
+
+   # (Optional) Supabase Storage Bucket setup
+   # Create a bucket named 'proofs' in Supabase dashboard and set its visibility to PUBLIC.
+   # SUPABASE_URL=https://your_project_ref.supabase.co
+   # SUPABASE_KEY=your_public_anon_or_service_role_key
    ```
 
 3. **Run the Application**:

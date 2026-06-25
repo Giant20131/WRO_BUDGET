@@ -5,4 +5,6 @@ WTForms==3.1.2
 Werkzeug==3.0.3
 python-dotenv==1.0.1
 pg8000
+requests
 gunicorn>=21.2.0
+

@@ -264,7 +264,7 @@
                             <td class="py-4 px-6 text-sm font-bold text-white font-mono">₹{{ "{:,.2f}".format(buy.total_amount) }}</td>
                             <td class="py-4 px-6 text-right text-sm">
                                 {% if buy.pdf_proof_path %}
-                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" onclick="event.stopPropagation();" class="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+                                <a href="{% if buy.pdf_proof_path.startswith('http') %}{{ buy.pdf_proof_path }}{% else %}{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}{% endif %}" target="_blank" onclick="event.stopPropagation();" class="inline-flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                     </svg>
@@ -338,7 +338,7 @@
 
                                             <div class="pt-3 border-t border-white/5 flex gap-2">
                                                 {% if buy.pdf_proof_path %}
-                                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" class="w-full text-center text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 py-2 rounded-lg transition-colors">
+                                                <a href="{% if buy.pdf_proof_path.startswith('http') %}{{ buy.pdf_proof_path }}{% else %}{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}{% endif %}" target="_blank" class="w-full text-center text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 border border-white/10 py-2 rounded-lg transition-colors">
                                                     Open PDF Proof In Browser
                                                 </a>
                                                 {% endif %}

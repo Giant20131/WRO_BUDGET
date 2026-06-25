@@ -2,6 +2,7 @@ import os
 import uuid
 import csv
 import io
+import requests
 from datetime import datetime, date, time
 from functools import wraps
 
@@ -127,6 +128,72 @@ class LoginForm(FlaskForm):
 # Helper function to check file extension
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Supabase storage helper functions
+def upload_to_supabase_storage(file_data, filename, content_type='application/pdf'):
+    """
+    Uploads a file to Supabase Storage bucket 'proofs'.
+    Returns the public URL if successful, or None if failed.
+    """
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_KEY')
+    if not supabase_url or not supabase_key:
+        return None
+    
+    supabase_url = supabase_url.rstrip('/')
+    bucket = 'proofs'
+    upload_url = f"{supabase_url}/storage/v1/object/{bucket}/{filename}"
+    
+    headers = {
+        "Authorization": f"Bearer {supabase_key}",
+        "apikey": supabase_key,
+        "Content-Type": content_type
+    }
+    
+    try:
+        response = requests.post(upload_url, headers=headers, data=file_data)
+        if response.status_code == 200:
+            return f"{supabase_url}/storage/v1/object/public/{bucket}/{filename}"
+        else:
+            print(f"Supabase upload error: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"Exception during Supabase upload: {e}")
+        return None
+
+def delete_from_supabase_storage(file_url_or_path):
+    """
+    Deletes a file from Supabase Storage bucket 'proofs'.
+    """
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_KEY')
+    if not supabase_url or not supabase_key or not file_url_or_path:
+        return False
+    
+    filename = file_url_or_path
+    if '/' in file_url_or_path:
+        filename = file_url_or_path.split('/')[-1]
+        
+    supabase_url = supabase_url.rstrip('/')
+    bucket = 'proofs'
+    delete_url = f"{supabase_url}/storage/v1/object/{bucket}"
+    
+    headers = {
+        "Authorization": f"Bearer {supabase_key}",
+        "apikey": supabase_key,
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "prefixes": [filename]
+    }
+    
+    try:
+        response = requests.delete(delete_url, headers=headers, json=payload)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Exception during Supabase delete: {e}")
+        return False
 
 # ---------------------------------------------------------
 # Database Seed Script
@@ -345,8 +412,25 @@ def buy_add():
         if allowed_file(pdf_proof.filename):
             filename = secure_filename(pdf_proof.filename)
             unique_filename = f"{uuid.uuid4().hex}_{filename}"
-            pdf_proof.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-            pdf_path = unique_filename
+            
+            # Read file data for Supabase upload
+            file_data = pdf_proof.read()
+            pdf_proof.seek(0)
+            
+            # Try uploading to Supabase
+            supabase_url = os.environ.get('SUPABASE_URL')
+            supabase_key = os.environ.get('SUPABASE_KEY')
+            uploaded_url = None
+            
+            if supabase_url and supabase_key:
+                uploaded_url = upload_to_supabase_storage(file_data, unique_filename, content_type='application/pdf')
+                
+            if uploaded_url:
+                pdf_path = uploaded_url
+            else:
+                # Local fallback
+                pdf_proof.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                pdf_path = unique_filename
         else:
             flash("Invalid file format. Only PDF files are allowed.", "danger")
             return redirect(url_for('dashboard'))
@@ -450,20 +534,39 @@ def buy_edit(buy_id):
         pdf_proof = request.files.get('pdf_proof')
         if pdf_proof and pdf_proof.filename != '':
             if allowed_file(pdf_proof.filename):
-                # Delete old PDF file if exists
-                if buy_record.pdf_proof_path:
-                    old_path = os.path.join(app.config['UPLOAD_FOLDER'], buy_record.pdf_proof_path)
-                    if os.path.exists(old_path):
-                        try:
-                            os.remove(old_path)
-                        except Exception as e:
-                            print(f"Error removing file: {e}")
-                
-                # Save new file
                 filename = secure_filename(pdf_proof.filename)
                 unique_filename = f"{uuid.uuid4().hex}_{filename}"
-                pdf_proof.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                buy_record.pdf_proof_path = unique_filename
+                
+                # Read file data
+                file_data = pdf_proof.read()
+                pdf_proof.seek(0)
+                
+                # Check for Supabase config
+                supabase_url = os.environ.get('SUPABASE_URL')
+                supabase_key = os.environ.get('SUPABASE_KEY')
+                uploaded_url = None
+                
+                if supabase_url and supabase_key:
+                    uploaded_url = upload_to_supabase_storage(file_data, unique_filename, content_type='application/pdf')
+                
+                # Delete old PDF file if exists
+                if buy_record.pdf_proof_path:
+                    if buy_record.pdf_proof_path.startswith('http'):
+                        delete_from_supabase_storage(buy_record.pdf_proof_path)
+                    else:
+                        old_path = os.path.join(app.config['UPLOAD_FOLDER'], buy_record.pdf_proof_path)
+                        if os.path.exists(old_path):
+                            try:
+                                os.remove(old_path)
+                            except Exception as e:
+                                print(f"Error removing local file: {e}")
+                
+                if uploaded_url:
+                    buy_record.pdf_proof_path = uploaded_url
+                else:
+                    # Fallback to local
+                    pdf_proof.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                    buy_record.pdf_proof_path = unique_filename
             else:
                 flash("Invalid file format. Only PDF files are allowed.", "danger")
                 return redirect(url_for('buy_edit', buy_id=buy_id))
@@ -539,7 +642,10 @@ def export_expenses():
     
     for b in buys:
         buyer = b.user.username if b.user else 'Unknown'
-        pdf_url = url_for('static', filename=f'uploads/proofs/{b.pdf_proof_path}', _external=True) if b.pdf_proof_path else 'None'
+        if b.pdf_proof_path:
+            pdf_url = b.pdf_proof_path if b.pdf_proof_path.startswith('http') else url_for('static', filename=f'uploads/proofs/{b.pdf_proof_path}', _external=True)
+        else:
+            pdf_url = 'None'
         
         # If no components exist for some reason, write a row for the buy
         if not b.components:

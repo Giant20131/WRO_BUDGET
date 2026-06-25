@@ -116,8 +116,12 @@
                         <input type="file" name="pdf_proof" accept="application/pdf" class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer">
                         <p class="text-[10px] text-slate-500 mt-1">Leave empty to keep current proof: 
                             {% if buy.pdf_proof_path %}
-                                <a href="{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}" target="_blank" class="text-brand-400 hover:underline inline-flex items-center gap-0.5">
-                                    {{ buy.pdf_proof_path.split('_', 1)[1] if '_' in buy.pdf_proof_path else buy.pdf_proof_path }}
+                                <a href="{% if buy.pdf_proof_path.startswith('http') %}{{ buy.pdf_proof_path }}{% else %}{{ url_for('static', filename='uploads/proofs/' ~ buy.pdf_proof_path) }}{% endif %}" target="_blank" class="text-brand-400 hover:underline inline-flex items-center gap-0.5">
+                                    {% if buy.pdf_proof_path.startswith('http') %}
+                                        View Uploaded Supabase Proof
+                                    {% else %}
+                                        {{ buy.pdf_proof_path.split('_', 1)[1] if '_' in buy.pdf_proof_path else buy.pdf_proof_path }}
+                                    {% endif %}
                                 </a>
                             {% else %}
                                 <span class="italic text-slate-600">None uploaded</span>
